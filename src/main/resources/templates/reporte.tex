@@ -1,0 +1,96 @@
+\documentclass[11pt, a4paper]{article}
+
+% --- PAQUETES DE DISEÑO ---
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel} % Idioma español
+\usepackage{geometry}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{fancyhdr} % Encabezados y pies de página
+\usepackage{titlesec} % Títulos personalizados
+\usepackage{tcolorbox} % Cajas de colores bonitas
+\usepackage{helvet} % Fuente más moderna (Arial-like)
+\renewcommand{\familydefault}{\sfdefault}
+
+% --- CONFIGURACIÓN DE PÁGINA ---
+\geometry{top=2.5cm, bottom=2.5cm, left=2cm, right=2cm}
+
+% --- DEFINICIÓN DE COLORES (ESTILO HACKER) ---
+\definecolor{htbgreen}{RGB}{159, 239, 0} % Verde HTB
+\definecolor{darkbg}{RGB}{20, 29, 43}    % Azul oscuro fondo
+\definecolor{graytext}{RGB}{80, 80, 80}
+
+% --- CONFIGURACIÓN DE ENCABEZADO Y PIE ---
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\textcolor{graytext}{\small Reporte de Pentesting Automatizado}}
+\lhead{\includegraphics[height=0.5cm]{logo.png}} % Logo pequeño en todas las páginas
+\rfoot{\thepage}
+\lfoot{\small \textcolor{htbgreen}{CONFIDENCIAL}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% --- CONFIGURACIÓN DE TÍTULOS ---
+\titleformat{\section}
+  {\color{darkbg}\Large\bfseries}
+  {\color{htbgreen}\thesection}{1em}{}[\titlerule]
+
+\titleformat{\subsection}
+  {\color{darkbg}\large\bfseries}
+  {\color{htbgreen}\thesubsection}{1em}{}
+
+% --- PORTADA PERSONALIZADA ---
+\begin{document}
+
+\begin{titlepage}
+    \centering
+    \vspace*{1cm}
+
+    % Logo grande
+    \includegraphics[width=0.4\textwidth]{logo.png}
+    \vspace{2cm}
+
+    {\Huge \bfseries Reporte Técnico de Seguridad \par}
+    \vspace{0.5cm}
+    {\Large \textcolor{graytext}{Análisis de Vulnerabilidades y Explotación} \par}
+
+    \vspace{3cm}
+
+    % Caja de Título de la Vulnerabilidad
+    \begin{tcolorbox}[colback=darkbg, colframe=htbgreen, arc=4mm, title=\textbf{OBJETIVO DEL ATAQUE}]
+        \centering \Large \textcolor{white}{VAR_TITULO}
+    \end{tcolorbox}
+
+    \vspace{2cm}
+
+    \textbf{Fecha:} \today \\
+    \textbf{Auditor:} Pentest AI Reporter \\
+    \textbf{Estado:} \textcolor{red}{\textbf{COMPROMISO TOTAL}}
+
+    \vfill
+
+    {\small Generado automáticamente por tu sistema de IA}
+\end{titlepage}
+
+% --- ÍNDICE ---
+\tableofcontents
+\newpage
+
+% --- CONTENIDO ---
+
+\section{Resumen Ejecutivo}
+Este documento detalla el proceso técnico de compromiso del objetivo. Se ha identificado una vulnerabilidad crítica que permite el acceso no autorizado y la escalada de privilegios.
+
+\begin{tcolorbox}[colback=red!10!white, colframe=red!75!black, title=Nivel de Severidad]
+    \textbf{VAR_SEVERIDAD}
+\end{tcolorbox}
+
+\section{Descripción Técnica}
+VAR_DESCRIPCION
+
+\section{Cadena de Explotación (Kill Chain)}
+A continuación se detallan los pasos exactos para reproducir el ataque:
+
+VAR_PASOS
+
+\end{document}

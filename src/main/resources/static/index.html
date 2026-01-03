@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pentest AI Reporter</title>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --text-color: #c9d1d9;
+            --accent-color: #238636;
+            --input-bg: #161b22;
+            --border-color: #30363d;
+        }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 800px;
+            max-width: 100%;
+        }
+
+        h1 {
+            color: var(--accent-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .card {
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+            color: #58a6ff;
+        }
+
+        input[type="text"],
+        textarea,
+        select {
+            width: 100%;
+            background: #0d1117;
+            border: 1px solid var(--border-color);
+            color: white;
+            padding: 10px;
+            margin-top: 5px;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        textarea {
+            height: 150px;
+            resize: vertical;
+        }
+
+        button {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 4px;
+            margin-top: 15px;
+            width: 100%;
+            font-weight: bold;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .image-upload-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #21262d;
+            padding: 10px;
+            margin-top: 5px;
+            border-radius: 4px;
+            border-left: 3px solid #f78166;
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--accent-color);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>💀 Pentest Reporter AI</h1>
+
+        <div class="card">
+            <h3>0. Configuración Inicial</h3>
+            <label>Estilo de Reporte (Persona IA)</label>
+            <select id="personaSelect"></select>
+
+            <label>Plantilla PDF</label>
+            <select id="templateSelect"></select>
+        </div>
+
+        <div class="card">
+            <h3>1. Subir Notas (Obsidian .md)</h3>
+            <input type="file" id="mdInput" accept=".md">
+            <button onclick="analizarNotas()" id="btnAnalizar">🔍 Analizar con IA</button>
+            <div id="loading" class="hidden">
+                <div class="loader"></div>
+                <p style="text-align: center;">La IA está leyendo tus notas... (Esto puede tardar unos segundos)</p>
+            </div>
+        </div>
+
+        <div id="resultSection" class="hidden">
+            <div class="card">
+                <h3>2. Revisión del Reporte</h3>
+
+                <label>Título Vulnerabilidad</label>
+                <input type="text" id="titulo">
+
+                <label>Severidad</label>
+                <input type="text" id="severidad">
+
+                <label>Descripción Técnica (IA)</label>
+                <textarea id="descripcion"></textarea>
+
+                <label>Pasos de Reproducción</label>
+                <textarea id="pasos"></textarea>
+            </div>
+
+            <div class="card">
+                <h3>3. Imágenes Detectadas</h3>
+                <p style="font-size: 0.9em; color: #8b949e;">La IA detectó estas etiquetas en tu texto. Sube las
+                    capturas correspondientes:</p>
+                <div id="imageUploadContainer">
+                </div>
+            </div>
+
+            <button onclick="generarPDF()" id="btnGenerar">🚀 GENERAR PDF FINAL</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "http://localhost:8080/api/v1";
+
+        // Cargar opciones al inicio
+        window.onload = async () => {
+            try {
+                const response = await fetch(`${API_URL}/config`);
+                const config = await response.json();
+
+                // Llenar Personas
+                const personaSelect = document.getElementById('personaSelect');
+                config.personas.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p;
+                    opt.innerText = p.toUpperCase();
+                    personaSelect.appendChild(opt);
+                });
+
+                // Llenar Templates
+                const templateSelect = document.getElementById('templateSelect');
+                config.templates.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t;
+                    opt.innerText = t;
+                    templateSelect.appendChild(opt);
+                });
+
+            } catch (e) {
+                console.error("Error cargando config:", e);
+            }
+        };
+
+        async function analizarNotas() {
+            const fileInput = document.getElementById('mdInput');
+            if (!fileInput.files[0]) return alert("Selecciona un archivo .md primero");
+
+            // UI Updates
+            document.getElementById('btnAnalizar').disabled = true;
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('resultSection').classList.add('hidden');
+
+            const formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+            formData.append("personaId", document.getElementById('personaSelect').value);
+
+            try {
+                const response = await fetch(`${API_URL}/analizar`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error("Error conectando con la IA");
+
+                const data = await response.json();
+                mostrarResultados(data);
+
+            } catch (error) {
+                alert("Error: " + error.message);
+            } finally {
+                document.getElementById('btnAnalizar').disabled = false;
+                document.getElementById('loading').classList.add('hidden');
+            }
+        }
+
+        function mostrarResultados(data) {
+            document.getElementById('titulo').value = data.titulo_vulnerabilidad || "";
+            document.getElementById('severidad').value = data.severidad || "";
+            document.getElementById('descripcion').value = data.descripcion_tecnica || "";
+
+            // --- ARREGLO PARA [object Object] ---
+            let pasosRaw = data.pasos_reproduccion;
+            let pasosTexto = "";
+
+            if (Array.isArray(pasosRaw)) {
+                // Si es una lista, revisamos qué tiene adentro
+                pasosTexto = pasosRaw.map(item => {
+                    if (typeof item === 'object' && item !== null) {
+                        // Si el item es un objeto, intentamos sacar su valor o lo convertimos a string
+                        return Object.values(item).join(" ");
+                    }
+                    return item; // Si es texto, lo dejamos igual
+                }).join("\n");
+            } else {
+                // Si ya es un string, lo usamos directo
+                pasosTexto = pasosRaw || "";
+            }
+
+            document.getElementById('pasos').value = pasosTexto;
+            // -------------------------------------
+
+            // DETECCIÓN DE IMÁGENES (Buscamos en descripción Y en pasos)
+            detectarImagenes(data.descripcion_tecnica + "\n" + pasosTexto);
+
+            document.getElementById('resultSection').classList.remove('hidden');
+        }
+
+        function detectarImagenes(textoCompleto) {
+            const container = document.getElementById('imageUploadContainer');
+            container.innerHTML = ""; // Limpiar anteriores
+
+            // Regex para buscar ![[nombre.png]] O ![alt](nombre.png)
+            const regex = /!\[\[(.*?)\]\]|!\[(.*?)\]\((.*?)\)/g;
+            let match;
+            const imagenesEncontradas = new Set();
+
+            while ((match = regex.exec(textoCompleto)) !== null) {
+                let nombreImg = match[1] || match[3]; // Grupo 1 (Wiki) o Grupo 3 (Standard)
+                imagenesEncontradas.add(nombreImg);
+            }
+
+            if (imagenesEncontradas.size === 0) {
+                container.innerHTML = "<p>✅ No se detectaron referencias a imágenes.</p>";
+                return;
+            }
+
+            // Crear un input por cada imagen encontrada
+            imagenesEncontradas.forEach(nombreImg => {
+                const div = document.createElement('div');
+                div.className = 'image-upload-row';
+                div.innerHTML = `
+                <span>📷 <b>${nombreImg}</b></span>
+                <input type="file" class="img-input" data-name="${nombreImg}">
+            `;
+                container.appendChild(div);
+            });
+        }
+
+        async function generarPDF() {
+            const btn = document.getElementById('btnGenerar');
+            btn.disabled = true;
+            btn.innerText = "Compilando PDF...";
+
+            const datosDTO = {
+                titulo_vulnerabilidad: document.getElementById('titulo').value,
+                severidad: document.getElementById('severidad').value,
+                descripcion_tecnica: document.getElementById('descripcion').value,
+                pasos_reproduccion: document.getElementById('pasos').value
+            };
+
+            const formData = new FormData();
+            // 1. Enviamos el JSON como string
+            formData.append("datos", JSON.stringify(datosDTO));
+            formData.append("templateName", document.getElementById('templateSelect').value);
+
+            // 2. Buscamos todas las imágenes subidas
+            const inputs = document.querySelectorAll('.img-input');
+            inputs.forEach(input => {
+                if (input.files[0]) {
+                    // TRUCO: Creamos un nuevo archivo con el nombre que espera la IA
+                    // Así, si subes "captura_1.png" pero la IA esperaba "Pasted image 23.png",
+                    // aquí lo renombramos al vuelo para que LaTeX no falle.
+                    const nombreEsperado = input.getAttribute('data-name');
+                    const archivoOriginal = input.files[0];
+                    const archivoRenombrado = new File([archivoOriginal], nombreEsperado, { type: archivoOriginal.type });
+
+                    formData.append("imagenes", archivoRenombrado);
+                }
+            });
+
+            try {
+                const response = await fetch(`${API_URL}/generar-pdf`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const texto = await response.text();
+                alert(texto); // "PDF Generado exitosamente..."
+
+            } catch (error) {
+                alert("Error al generar PDF: " + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "🚀 GENERAR PDF FINAL";
+            }
+        }
+    </script>
+
+</body>
+
+</html>
