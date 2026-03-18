@@ -125,6 +125,39 @@
                 transform: rotate(360deg);
             }
         }
+
+        .error-banner {
+            background: #3d1117;
+            border: 1px solid #f85149;
+            border-left: 4px solid #f85149;
+            color: #f85149;
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 0.9em;
+            word-break: break-word;
+        }
+
+        .error-banner .error-title {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .error-banner .error-detail {
+            color: #f0a0a0;
+            font-size: 0.85em;
+        }
+
+        .success-banner {
+            background: #0d2818;
+            border: 1px solid #238636;
+            border-left: 4px solid #238636;
+            color: #3fb950;
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 0.9em;
+        }
     </style>
 </head>
 
@@ -132,6 +165,8 @@
 
     <div class="container">
         <h1>💀 Pentest Reporter AI</h1>
+
+        <div id="globalMessage"></div>
 
         <div class="card">
             <h3>0. Configuración Inicial</h3>
@@ -150,6 +185,7 @@
                 <div class="loader"></div>
                 <p style="text-align: center;">La IA está leyendo tus notas... (Esto puede tardar unos segundos)</p>
             </div>
+            <div id="analizarMessage"></div>
         </div>
 
         <div id="resultSection" class="hidden">
@@ -178,16 +214,39 @@
             </div>
 
             <button onclick="generarPDF()" id="btnGenerar">🚀 GENERAR PDF FINAL</button>
+            <div id="generarMessage"></div>
         </div>
     </div>
 
     <script>
         const API_URL = "http://localhost:8080/api/v1";
 
+        function mostrarError(containerId, mensaje, detalle) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `
+                <div class="error-banner">
+                    <div class="error-title">❌ ${mensaje}</div>
+                    ${detalle ? `<div class="error-detail">${detalle}</div>` : ''}
+                </div>
+            `;
+        }
+
+        function mostrarExito(containerId, mensaje) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `
+                <div class="success-banner">✅ ${mensaje}</div>
+            `;
+        }
+
+        function limpiarMensaje(containerId) {
+            document.getElementById(containerId).innerHTML = '';
+        }
+
         // Cargar opciones al inicio
         window.onload = async () => {
             try {
                 const response = await fetch(`${API_URL}/config`);
+                if (!response.ok) throw new Error("No se pudo cargar la configuración del servidor");
                 const config = await response.json();
 
                 // Llenar Personas
@@ -209,15 +268,22 @@
                 });
 
             } catch (e) {
+                mostrarError('globalMessage',
+                    'No se pudo conectar al servidor',
+                    '¿Está la aplicación Spring Boot corriendo en localhost:8080?');
                 console.error("Error cargando config:", e);
             }
         };
 
         async function analizarNotas() {
             const fileInput = document.getElementById('mdInput');
-            if (!fileInput.files[0]) return alert("Selecciona un archivo .md primero");
+            if (!fileInput.files[0]) {
+                mostrarError('analizarMessage', 'Selecciona un archivo .md primero');
+                return;
+            }
 
             // UI Updates
+            limpiarMensaje('analizarMessage');
             document.getElementById('btnAnalizar').disabled = true;
             document.getElementById('loading').classList.remove('hidden');
             document.getElementById('resultSection').classList.add('hidden');
@@ -232,13 +298,20 @@
                     body: formData
                 });
 
-                if (!response.ok) throw new Error("Error conectando con la IA");
+                if (!response.ok) {
+                    let detalle = '';
+                    try {
+                        const errorData = await response.json();
+                        detalle = errorData.error || '';
+                    } catch { detalle = 'Status: ' + response.status; }
+                    throw new Error(detalle || 'Error conectando con la IA');
+                }
 
                 const data = await response.json();
                 mostrarResultados(data);
 
             } catch (error) {
-                alert("Error: " + error.message);
+                mostrarError('analizarMessage', 'Error al analizar las notas', error.message);
             } finally {
                 document.getElementById('btnAnalizar').disabled = false;
                 document.getElementById('loading').classList.add('hidden');
@@ -250,26 +323,21 @@
             document.getElementById('severidad').value = data.severidad || "";
             document.getElementById('descripcion').value = data.descripcion_tecnica || "";
 
-            // --- ARREGLO PARA [object Object] ---
             let pasosRaw = data.pasos_reproduccion;
             let pasosTexto = "";
 
             if (Array.isArray(pasosRaw)) {
-                // Si es una lista, revisamos qué tiene adentro
                 pasosTexto = pasosRaw.map(item => {
                     if (typeof item === 'object' && item !== null) {
-                        // Si el item es un objeto, intentamos sacar su valor o lo convertimos a string
                         return Object.values(item).join(" ");
                     }
-                    return item; // Si es texto, lo dejamos igual
+                    return item;
                 }).join("\n");
             } else {
-                // Si ya es un string, lo usamos directo
                 pasosTexto = pasosRaw || "";
             }
 
             document.getElementById('pasos').value = pasosTexto;
-            // -------------------------------------
 
             // DETECCIÓN DE IMÁGENES (Buscamos en descripción Y en pasos)
             detectarImagenes(data.descripcion_tecnica + "\n" + pasosTexto);
@@ -312,6 +380,7 @@
             const btn = document.getElementById('btnGenerar');
             btn.disabled = true;
             btn.innerText = "Compilando PDF...";
+            limpiarMensaje('generarMessage');
 
             const datosDTO = {
                 titulo_vulnerabilidad: document.getElementById('titulo').value,
@@ -329,9 +398,6 @@
             const inputs = document.querySelectorAll('.img-input');
             inputs.forEach(input => {
                 if (input.files[0]) {
-                    // TRUCO: Creamos un nuevo archivo con el nombre que espera la IA
-                    // Así, si subes "captura_1.png" pero la IA esperaba "Pasted image 23.png",
-                    // aquí lo renombramos al vuelo para que LaTeX no falle.
                     const nombreEsperado = input.getAttribute('data-name');
                     const archivoOriginal = input.files[0];
                     const archivoRenombrado = new File([archivoOriginal], nombreEsperado, { type: archivoOriginal.type });
@@ -347,10 +413,20 @@
                 });
 
                 const texto = await response.text();
-                alert(texto); // "PDF Generado exitosamente..."
+
+                if (!response.ok) {
+                    let detalle = texto;
+                    try {
+                        const errorData = JSON.parse(texto);
+                        detalle = errorData.error || texto;
+                    } catch {}
+                    throw new Error(detalle);
+                }
+
+                mostrarExito('generarMessage', texto);
 
             } catch (error) {
-                alert("Error al generar PDF: " + error.message);
+                mostrarError('generarMessage', 'Error al generar PDF', error.message);
             } finally {
                 btn.disabled = false;
                 btn.innerText = "🚀 GENERAR PDF FINAL";
@@ -360,4 +436,4 @@
 
 </body>
 
-</html>
+</html>

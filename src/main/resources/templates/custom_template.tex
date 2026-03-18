@@ -1,5 +1,34 @@
-\documentclass{article}
+\documentclass[11pt, a4paper]{article}
+
+% --- PAQUETES BÁSICOS ---
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+
+% --- CONFIGURACIÓN DE PÁGINA ---
+\geometry{top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm}
+
+% --- PORTADA SIMPLE ---
 \begin{document}
-<h1>CUSTOM TEMPLATE</h1>
-\textbf{Title:} VAR_TITULO
+
+\begin{center}
+    {\Huge \textbf{Reporte de Seguridad}} \\[1cm]
+    {\Large Plantilla Personalizada} \\[2cm]
+
+    \textbf{Vulnerabilidad:} VAR_TITULO \\[0.5cm]
+    \textbf{Severidad:} VAR_SEVERIDAD \\[0.5cm]
+    \textbf{Fecha:} \today
+\end{center}
+
+\vspace{2cm}
+
+\section*{Descripción}
+VAR_DESCRIPCION
+
+\section*{Pasos de Reproducción}
+VAR_PASOS
+
 \end{document}
